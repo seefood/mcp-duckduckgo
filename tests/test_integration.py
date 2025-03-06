@@ -7,13 +7,10 @@ These tests verify the end-to-end functionality of the search flow.
 import pytest
 import httpx
 from unittest.mock import AsyncMock, patch, MagicMock
-import json
 import asyncio
 
-from mcp.server.fastmcp import Context
 from mcp_duckduckgo.search import duckduckgo_search
 from mcp_duckduckgo.tools import duckduckgo_web_search, duckduckgo_get_details, duckduckgo_related_searches
-from mcp_duckduckgo.server import mcp
 
 
 class MockResponse:

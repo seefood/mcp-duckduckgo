@@ -3,7 +3,7 @@ Data models for the DuckDuckGo search plugin.
 """
 
 from typing import List, Optional, Dict
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 class SearchResult(BaseModel):
     """A single search result."""

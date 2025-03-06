@@ -2,11 +2,8 @@
 Shared test fixtures and configurations for MCP DuckDuckGo plugin tests.
 """
 
-import asyncio
-import json
-import os
-from typing import Dict, Any, AsyncGenerator, List, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any, Dict, List, Callable
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
@@ -65,7 +62,7 @@ class MockResponse:
         self.text = text
         self.status_code = status_code
     
-    def raise_for_status(self):
+    def raise_for_status(self) -> None:
         """Mock the raise_for_status method"""
         if self.status_code >= 400:
             raise httpx.HTTPStatusError(
@@ -78,31 +75,31 @@ class MockResponse:
 class MockContext(MagicMock):
     """Mock for MCP Context"""
     
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.lifespan_context = {"http_client": AsyncMock()}
     
-    async def report_progress(self, current, total):
+    async def report_progress(self, current: int, total: int) -> None:
         """Mock for report_progress method"""
         pass
     
-    async def error(self, message):
+    async def error(self, message: str) -> None:
         """Mock for error method"""
         pass
     
-    async def info(self, message):
+    async def info(self, message: str) -> None:
         """Mock for info method"""
         pass
 
 
 @pytest.fixture
-def mock_context():
+def mock_context() -> MockContext:
     """Return a mock Context object"""
     return MockContext()
 
 
 @pytest.fixture
-def mock_http_client():
+def mock_http_client() -> AsyncMock:
     """Return a mock AsyncClient"""
     client = AsyncMock()
     client.post = AsyncMock(return_value=MockResponse(SAMPLE_HTML))
@@ -112,7 +109,7 @@ def mock_http_client():
 
 
 @pytest.fixture
-def sample_search_params():
+def sample_search_params() -> Dict[str, Any]:
     """Return sample search parameters"""
     return {
         "query": "test query",
@@ -124,21 +121,21 @@ def sample_search_params():
 
 
 @pytest.fixture
-def sample_search_results():
+def sample_search_results() -> List[Dict[str, Any]]:
     """Return sample search results"""
     return SAMPLE_SEARCH_RESULTS
 
 
 @pytest.fixture
-def sample_soup():
+def sample_soup() -> BeautifulSoup:
     """Return a BeautifulSoup object with sample HTML"""
     return BeautifulSoup(SAMPLE_HTML, "html.parser")
 
 
 @pytest.fixture
-def mock_search_function():
+def mock_search_function() -> Callable[[Dict[str, Any], Context], Dict[str, Any]]:
     """Mock for the duckduckgo_search function"""
-    async def mock_search(params, ctx):
+    async def mock_search(params: Dict[str, Any], ctx: Context) -> Dict[str, Any]:
         return {
             "results": SAMPLE_SEARCH_RESULTS,
             "total_results": len(SAMPLE_SEARCH_RESULTS)

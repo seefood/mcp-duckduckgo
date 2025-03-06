@@ -6,11 +6,9 @@ This script makes actual HTTP requests to DuckDuckGo.
 
 import asyncio
 import logging
-import json
 from pydantic import BaseModel
 
 import httpx
-from bs4 import BeautifulSoup
 
 from mcp_duckduckgo.search import duckduckgo_search
 from mcp_duckduckgo.tools import duckduckgo_web_search, duckduckgo_get_details, duckduckgo_related_searches
@@ -73,7 +71,7 @@ async def test_real_search():
             print(f"Description: {result.description[:100]}..." if len(result.description) > 100 else f"Description: {result.description}")
         
         # Test web search with site filter
-        print(f"\n3. Testing web search with site filter: 'documentation' on python.org")
+        print("\n3. Testing web search with site filter: 'documentation' on python.org")
         site_filtered_results = await duckduckgo_web_search(query="documentation", count=3, page=1, site="python.org", time_period=None, ctx=ctx)
         
         print(f"Found {len(site_filtered_results.results)} results for site python.org:")
@@ -84,7 +82,7 @@ async def test_real_search():
             print(f"Description: {result.description[:100]}..." if len(result.description) > 100 else f"Description: {result.description}")
         
         # Test web search with time filter
-        print(f"\n4. Testing web search with time filter: 'python release' from last year")
+        print("\n4. Testing web search with time filter: 'python release' from last year")
         time_filtered_results = await duckduckgo_web_search(query="python release", count=3, page=1, site=None, time_period="year", ctx=ctx)
         
         print(f"Found {len(time_filtered_results.results)} results from last year:")

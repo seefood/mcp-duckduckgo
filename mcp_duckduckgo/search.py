@@ -3,14 +3,12 @@ Search functionality for the DuckDuckGo search plugin.
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any
 import urllib.parse
 
 import httpx
 from mcp.server.fastmcp import Context
 from bs4 import BeautifulSoup
-
-from .models import SearchResult
 
 # Configure logging
 logger = logging.getLogger("mcp_duckduckgo.search")
