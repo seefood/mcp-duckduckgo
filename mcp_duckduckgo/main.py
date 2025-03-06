@@ -6,7 +6,6 @@ This module implements a web search function using the DuckDuckGo API.
 import logging
 import importlib
 from typing import Any
-from dotenv import load_dotenv
 
 # Configure logging
 logging.basicConfig(
@@ -14,9 +13,6 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger("mcp_duckduckgo")
-
-# Load environment variables
-load_dotenv()
 
 def initialize_mcp() -> Any:
     """Initialize MCP server and register components."""
