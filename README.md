@@ -2,8 +2,8 @@
 
 A DuckDuckGo search plugin for Model Context Protocol (MCP), compatible with Claude Code. Provides web search functionality with advanced navigation and content exploration features.
 
-[![PyPI version](https://badge.fury.io/py/mcp-duckduckgo.svg)](https://badge.fury.io/py/mcp-duckduckgo)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub](https://img.shields.io/github/stars/gianlucamazza/mcp-duckduckgo?style=social)](https://github.com/gianlucamazza/mcp-duckduckgo)
 
 ## Description
 
@@ -31,6 +31,10 @@ This project implements a Model Context Protocol (MCP) server that provides web 
 
 ### From PyPI
 
+*Note: This package is not yet published to PyPI. Please install from source below.*
+
+In the future, once published, you'll be able to install with:
+
 ```bash
 pip install mcp-duckduckgo
 ```
@@ -40,8 +44,8 @@ pip install mcp-duckduckgo
 1. Clone this repository:
 
    ```bash
-   git clone https://github.com/gianlucamazza/mcp_duckduckgo.git
-   cd mcp_duckduckgo
+   git clone https://github.com/gianlucamazza/mcp-duckduckgo.git
+   cd mcp-duckduckgo
    ```
 
 2. Install the package in development mode:
@@ -92,11 +96,7 @@ make run
 
 ### Using with Claude Code
 
-1. Install the package:
-
-   ```bash
-   pip install mcp-duckduckgo
-   ```
+1. Install the package from source as described above.
 
 2. Configure Claude Code to use the plugin:
 
@@ -308,7 +308,20 @@ make lint
 
 ### Publishing to PyPI
 
-To build and publish the package to PyPI:
+If you want to publish the package to PyPI:
+
+1. Update the version in `pyproject.toml`
+2. Ensure you have the necessary credentials and tools:
+   ```bash
+   pip install build twine
+   ```
+3. Build and publish:
+   ```bash
+   python -m build
+   twine upload dist/*
+   ```
+
+Or use the provided script if available:
 
 ```bash
 ./scripts/publish.sh
@@ -320,6 +333,14 @@ Or use Make:
 make publish
 ```
 
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
 ## License
 
 [MIT](LICENSE)
+
+## Repository
+
+https://github.com/gianlucamazza/mcp-duckduckgo
