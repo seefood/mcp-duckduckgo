@@ -43,9 +43,8 @@ def test_mcp_discover(client):
 def test_mcp_execute(client, monkeypatch):
     """Test that the MCP execute endpoint works correctly."""
     # Mock the duckduckgo_search function to avoid making real API calls
-    from mcp_duckduckgo.main import duckduckgo_search
     
-    async def mock_duckduckgo_search(params):
+    async def mock_duckduckgo_search(_):
         """Mock implementation of duckduckgo_search."""
         return {
             "results": [

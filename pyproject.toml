@@ -7,7 +7,7 @@ name = "mcp_duckduckgo"
 version = "0.1.0"
 description = "DuckDuckGo search plugin for Model Context Protocol"
 authors = [
-    {name = "Gianluca Mazza", email = "your.email@example.com"}
+    {name = "Gianluca Mazza", email = "info@gianlucamazza.it"}
 ]
 readme = "README.md"
 requires-python = ">=3.9"

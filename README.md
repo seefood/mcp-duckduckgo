@@ -33,22 +33,26 @@ pip install mcp-duckduckgo
 ### From Source
 
 1. Clone this repository:
+
    ```bash
    git clone https://github.com/gianlucamazza/mcp_duckduckgo.git
    cd mcp_duckduckgo
    ```
 
 2. Install the package in development mode:
+
    ```bash
    pip install -e .
    ```
-   
+
    Or use the provided script:
+
    ```bash
    ./scripts/install_dev.sh
    ```
-   
+
    Or use Make:
+
    ```bash
    make install
    ```
@@ -70,11 +74,13 @@ mcp-duckduckgo --host 127.0.0.1 --port 8000
 ```
 
 Or use the provided script for development:
+
 ```bash
 ./scripts/run.sh
 ```
 
 Or use Make:
+
 ```bash
 make run
 ```
@@ -82,21 +88,25 @@ make run
 ### Using with Claude Code
 
 1. Install the package:
+
    ```bash
    pip install mcp-duckduckgo
    ```
 
 2. Configure Claude Code to use the plugin:
+
    ```bash
    claude mcp add duckduckgo-search -- mcp-duckduckgo
    ```
 
 3. For global configuration (available in all projects):
+
    ```bash
    claude mcp add duckduckgo-search --scope global -- mcp-duckduckgo
    ```
 
 4. Start Claude Code:
+
    ```bash
    claude
    ```
@@ -116,7 +126,8 @@ Performs a web search using DuckDuckGo with the following parameters:
 - `offset` (optional, default: 0): Pagination offset
 
 Example usage in Claude Code:
-```
+
+```text
 Search for "artificial intelligence latest developments"
 ```
 
@@ -125,7 +136,8 @@ Search for "artificial intelligence latest developments"
 Provides comprehensive documentation about the search functionality.
 
 Example usage in Claude Code:
-```
+
+```text
 Show me the documentation for the DuckDuckGo search
 ```
 
@@ -134,7 +146,8 @@ Show me the documentation for the DuckDuckGo search
 Helps formulate effective search queries.
 
 Example usage in Claude Code:
-```
+
+```text
 Help me formulate a search query about climate change solutions
 ```
 
@@ -143,7 +156,8 @@ Help me formulate a search query about climate change solutions
 Retrieves formatted search results for a specific query.
 
 Example usage in Claude Code:
-```
+
+```text
 Get search results for "quantum computing breakthroughs"
 ```
 
@@ -181,11 +195,13 @@ pytest
 ```
 
 Or use the provided script:
+
 ```bash
 ./scripts/test.sh
 ```
 
 Or use Make:
+
 ```bash
 make test
 ```
@@ -199,11 +215,13 @@ mypy mcp_duckduckgo
 ```
 
 Or use the provided script:
+
 ```bash
 ./scripts/lint.sh
 ```
 
 Or use Make:
+
 ```bash
 make lint
 ```
@@ -217,6 +235,7 @@ To build and publish the package to PyPI:
 ```
 
 Or use Make:
+
 ```bash
 make publish
 ```

@@ -1,4 +1,4 @@
-.PHONY: install test lint run publish clean
+.PHONY: install test lint run publish clean vulture
 
 # Default target
 all: install lint test
@@ -27,6 +27,10 @@ publish:
 clean:
 	rm -rf build/ dist/ *.egg-info/ .coverage htmlcov/ .pytest_cache/ __pycache__/ mcp_duckduckgo/__pycache__/ tests/__pycache__/
 
+# Run Vulture to check for unused code
+vulture:
+	./scripts/vulture.sh
+
 # Help target
 help:
 	@echo "Available targets:"
@@ -36,5 +40,6 @@ help:
 	@echo "  make run      - Run the MCP server"
 	@echo "  make publish  - Build and publish the package to PyPI"
 	@echo "  make clean    - Clean build artifacts"
+	@echo "  make vulture  - Check for unused code with Vulture"
 	@echo "  make all      - Run install, lint, and test (default)"
 	@echo "  make help     - Show this help message" 
