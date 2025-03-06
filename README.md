@@ -1,17 +1,22 @@
 # MCP DuckDuckGo Search Plugin
 
-A DuckDuckGo search plugin for Model Context Protocol (MCP), compatible with Claude Code.
+A DuckDuckGo search plugin for Model Context Protocol (MCP), compatible with Claude Code. Provides web search functionality with advanced navigation and content exploration features.
 
 [![PyPI version](https://badge.fury.io/py/mcp-duckduckgo.svg)](https://badge.fury.io/py/mcp-duckduckgo)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Description
 
-This project implements a Model Context Protocol (MCP) server that provides web search functionality using DuckDuckGo. The plugin can be used with Claude Code or any other client that supports MCP.
+This project implements a Model Context Protocol (MCP) server that provides web search functionality using DuckDuckGo. The plugin is designed to work seamlessly with Claude Code or any other client that supports MCP, offering not just basic search capabilities but also advanced navigation and result exploration features.
 
 ## Features
 
 - **Web Search Tool**: Perform web searches using DuckDuckGo
+- **Detailed Results**: Get detailed information about specific search results
+- **Related Searches**: Discover related search queries based on your original search
+- **Pagination Support**: Navigate through multiple pages of search results
+- **Domain Extraction**: View domain information for each search result
+- **Advanced Filtering**: Filter results by site and time period
 - **Search Documentation**: Access comprehensive documentation about the search functionality
 - **Search Assistant**: Get help formulating effective search queries
 - **Parameterized Resource**: Retrieve formatted search results for specific queries
@@ -122,13 +127,40 @@ The plugin provides the following endpoints:
 Performs a web search using DuckDuckGo with the following parameters:
 
 - `query` (required): The search query (max 400 characters, 50 words)
-- `count` (optional, default: 10): Number of results (1-20)
-- `offset` (optional, default: 0): Pagination offset
+- `count` (optional, default: 10): Number of results per page (1-20)
+- `page` (optional, default: 1): Page number for pagination
+- `site` (optional): Limit results to a specific site (e.g., 'example.com')
+- `time_period` (optional): Filter results by time period ('day', 'week', 'month', 'year')
 
 Example usage in Claude Code:
 
 ```text
 Search for "artificial intelligence latest developments"
+```
+
+### Tool: `duckduckgo_get_details`
+
+Retrieves detailed information about a specific search result:
+
+- `url` (required): URL of the result to get details for
+
+Example usage in Claude Code:
+
+```text
+Get details for "https://example.com/article"
+```
+
+### Tool: `duckduckgo_related_searches`
+
+Suggests related search queries based on the original query:
+
+- `query` (required): Original search query (max 400 characters)
+- `count` (optional, default: 5): Number of related searches to return (1-10)
+
+Example usage in Claude Code:
+
+```text
+Find related searches for "renewable energy"
 ```
 
 ### Resource: `docs://search`
@@ -159,6 +191,54 @@ Example usage in Claude Code:
 
 ```text
 Get search results for "quantum computing breakthroughs"
+```
+
+## Using the Navigation Features
+
+The plugin provides several features to help navigate and explore search results:
+
+### Pagination
+
+To navigate through multiple pages of search results:
+
+```text
+Search for "climate change solutions" with 5 results per page, page 2
+```
+
+### Filtering Results
+
+To filter results by specific site:
+
+```text
+Search for "machine learning tutorials" on "tensorflow.org"
+```
+
+To filter results by time period:
+
+```text
+Search for "latest news" from the past week
+```
+
+### Exploring Result Details
+
+To get more information about a specific search result:
+
+```text
+Get details for "https://example.com/article-found-in-search"
+```
+
+### Finding Related Searches
+
+To discover related search queries:
+
+```text
+Find related searches for "electric vehicles"
+```
+
+These navigation features can be combined with Claude's natural language capabilities to create a powerful search and exploration experience. For example:
+
+```text
+Search for "python machine learning libraries", then get details on the top result, and finally show me related search terms
 ```
 
 ## Implementation Notes
