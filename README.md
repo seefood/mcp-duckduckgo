@@ -17,6 +17,11 @@ This project implements a Model Context Protocol (MCP) server that provides web 
 - **Pagination Support**: Navigate through multiple pages of search results
 - **Domain Extraction**: View domain information for each search result
 - **Advanced Filtering**: Filter results by site and time period
+- **Enhanced Content Extraction**: Extract rich content from webpages including metadata, structure, and snippets
+- **Basic Web Spidering**: Follow links from search results to explore related content (configurable depth)
+- **Metadata Extraction**: Extract titles, authors, keywords, publication dates, and more
+- **Social Media Detection**: Identify and extract social media links from webpages
+- **Content Structure Analysis**: Extract headings and sections to understand webpage structure
 - **Search Documentation**: Access comprehensive documentation about the search functionality
 - **Search Assistant**: Get help formulating effective search queries
 - **Parameterized Resource**: Retrieve formatted search results for specific queries
@@ -244,6 +249,43 @@ Search for "python machine learning libraries", then get details on the top resu
 ## Implementation Notes
 
 This implementation uses DuckDuckGo's public web interface and parses the HTML response to extract results. This approach is used for demonstration purposes, as DuckDuckGo does not offer an official search API. In a production environment, it's recommended to use a search service with an official API.
+
+## Enhanced Content Extraction
+
+The DuckDuckGo plugin includes advanced content extraction capabilities that go beyond simple search results:
+
+### Content Extraction Features
+
+- **Full Webpage Analysis**: Extract and parse HTML content from search result URLs
+- **Intelligent Content Targeting**: Identify and extract main content areas from different types of websites
+- **Rich Metadata Extraction**: Extract titles, descriptions, authors, keywords, and publication dates
+- **Image Detection**: Identify and extract main images and media from webpages
+- **Social Media Integration**: Detect and extract links to social media profiles
+- **Content Structure Analysis**: Extract headings and sections to understand webpage organization
+- **Official Source Detection**: Identify whether a source is official based on domain and content signals
+
+### Web Spidering Capabilities
+
+The plugin includes basic web spidering functionality:
+
+- **Configurable Depth**: Follow links from 0 to 3 levels deep from the original URL
+- **Link Limitation**: Control the maximum number of links to follow per page (1-5)
+- **Domain Restriction**: Option to only follow links within the same domain
+- **Related Content Discovery**: Find and analyze content related to the original search
+
+### Using Enhanced Content Extraction
+
+To use the enhanced content extraction features:
+
+```text
+Get details for "https://example.com/article" with spider depth 1
+```
+
+To control spidering behavior:
+
+```text
+Get details for "https://example.com/article" with spider depth 2, max links 3, same domain only
+```
 
 ## Development
 
