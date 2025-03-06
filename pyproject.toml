@@ -35,10 +35,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/gianlucamazza/mcp_duckduckgo"
-Repository = "https://github.com/gianlucamazza/mcp_duckduckgo"
-"Bug Tracker" = "https://github.com/gianlucamazza/mcp_duckduckgo/issues"
-Documentation = "https://github.com/gianlucamazza/mcp_duckduckgo#readme"
+Homepage = "https://github.com/gianlucamazza/mcp-duckduckgo"
+Repository = "https://github.com/gianlucamazza/mcp-duckduckgo"
+"Bug Tracker" = "https://github.com/gianlucamazza/mcp-duckduckgo/issues"
+Documentation = "https://github.com/gianlucamazza/mcp-duckduckgo#readme"
 
 [project.scripts]
 mcp-duckduckgo = "mcp_duckduckgo.main:main"
