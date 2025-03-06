@@ -1,1 +1,3 @@
-"""Tests for the mcp_duckduckgo package."""
+"""
+Test package for the MCP DuckDuckGo plugin.
+"""

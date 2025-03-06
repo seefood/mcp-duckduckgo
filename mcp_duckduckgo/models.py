@@ -2,8 +2,8 @@
 Data models for the DuckDuckGo search plugin.
 """
 
-from typing import List, Optional
-from pydantic import BaseModel
+from typing import List, Optional, Dict
+from pydantic import BaseModel, Field
 
 class SearchResult(BaseModel):
     """A single search result."""
@@ -23,6 +23,14 @@ class SearchResponse(BaseModel):
     has_next: bool = False  # Whether there are more pages
     has_previous: bool = False  # Whether there are previous pages
 
+class LinkedContent(BaseModel):
+    """Content from a linked page discovered through spidering."""
+    
+    url: str
+    title: str
+    content_snippet: Optional[str] = None
+    relation: str = "linked"  # Relationship to original page (e.g., "linked", "child", "parent")
+
 class DetailedResult(BaseModel):
     """Detailed information about a search result."""
     
@@ -32,4 +40,19 @@ class DetailedResult(BaseModel):
     published_date: Optional[str] = None
     content_snippet: Optional[str] = None  # A snippet of the content
     domain: Optional[str] = None  # The domain of the result
-    is_official: Optional[bool] = None  # Whether this is an official source 
+    is_official: Optional[bool] = None  # Whether this is an official source
+    
+    # Enhanced metadata
+    author: Optional[str] = None  # Author of the content
+    keywords: Optional[List[str]] = None  # Keywords or tags
+    main_image: Optional[str] = None  # URL of the main image
+    
+    # Social metadata
+    social_links: Optional[Dict[str, str]] = None  # Links to social profiles
+    
+    # Spidering results
+    related_links: Optional[List[str]] = None  # URLs of related links found on the page
+    linked_content: Optional[List[LinkedContent]] = None  # Content from linked pages
+    
+    # Content structure
+    headings: Optional[List[str]] = None  # Main headings on the page 

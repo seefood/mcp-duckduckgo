@@ -33,6 +33,22 @@ dependencies = [
     "mcp>=1.3.0",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.1",
+    "pytest-cov>=4.1.0",
+    "mypy>=1.6.0",
+    "black>=23.9.1",
+    "isort>=5.12.0",
+    "httpx>=0.25.0"
+]
+dev = [
+    "pip>=23.2.1",
+    "build>=1.0.3",
+    "twine>=4.0.2",
+]
+
 [project.urls]
 Homepage = "https://github.com/gianlucamazza/mcp-duckduckgo"
 Repository = "https://github.com/gianlucamazza/mcp-duckduckgo"

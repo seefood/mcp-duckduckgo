@@ -268,10 +268,42 @@ make all      # Run install, lint, and test (default)
 make help     # Show help message
 ```
 
-### Running Tests
+### Testing
+
+The project includes a comprehensive test suite covering all major functionality. Tests are located in the `tests/` directory.
+
+#### Installing Test Dependencies
+
+Before running the tests, install the test dependencies:
+
+```bash
+pip install -e ".[test]"
+```
+
+#### Running Tests
+
+You can run all tests with:
 
 ```bash
 pytest
+```
+
+To run tests with coverage reporting:
+
+```bash
+pytest --cov=mcp_duckduckgo
+```
+
+To run a specific test file:
+
+```bash
+pytest tests/test_models.py
+```
+
+To run tests with verbose output:
+
+```bash
+pytest -v
 ```
 
 Or use the provided script:
@@ -285,6 +317,20 @@ Or use Make:
 ```bash
 make test
 ```
+
+#### Test Structure
+
+The test suite is organized as follows:
+
+- `conftest.py` - Shared fixtures and configurations for tests
+- `test_models.py` - Tests for data models
+- `test_search.py` - Tests for search functionality
+- `test_tools.py` - Tests for MCP tools
+- `test_resources.py` - Tests for MCP resources
+- `test_integration.py` - End-to-end integration tests
+- `test_server.py` - Server lifecycle tests
+
+For more details about testing, see the [tests/README.md](tests/README.md) file.
 
 ### Code Formatting and Linting
 
