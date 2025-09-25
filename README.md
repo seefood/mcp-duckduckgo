@@ -473,4 +473,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Repository
 
-https://github.com/gianlucamazza/mcp-duckduckgo
+[GitHub Repository](https://github.com/gianlucamazza/mcp-duckduckgo)
