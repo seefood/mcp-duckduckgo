@@ -28,7 +28,7 @@ This project implements a Model Context Protocol (MCP) server that provides web 
 
 ## Requirements
 
-- Python 3.9 or higher
+- Python 3.10 or higher
 - Package manager: `uv` (recommended) or `pip`
 - Python packages listed in `pyproject.toml`
 
