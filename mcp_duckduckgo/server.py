@@ -9,11 +9,7 @@ from contextlib import asynccontextmanager
 import httpx
 from mcp.server.fastmcp import FastMCP
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+# Server logging will be configured by the main module
 logger = logging.getLogger("mcp_duckduckgo.server")
 
 @asynccontextmanager
