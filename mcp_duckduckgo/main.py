@@ -49,7 +49,7 @@ def parse_args():
     parser.add_argument(
         "--version",
         action="version",
-        version="mcp-duckduckgo v" + __import__("mcp_duckduckgo", fromlist=["__version__"]).__version__
+        version="mcp-duckduckgo v0.2.0"
     )
     return parser.parse_args()
 
