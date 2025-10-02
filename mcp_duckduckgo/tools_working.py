@@ -9,7 +9,7 @@ import httpx
 from bs4 import BeautifulSoup
 import urllib.parse
 
-from .search_new import search_web, SearchResult, extract_domain
+from .search_new import search_web, extract_domain
 
 logger = logging.getLogger(__name__)
 
@@ -18,18 +18,18 @@ async def get_real_related_searches(query: str, http_client: httpx.AsyncClient) 
     try:
         url = "https://html.duckduckgo.com/html/"
         params = {"q": query}
-        
+
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.5",
         }
-        
+
         response = await http_client.get(url, params=params, headers=headers, timeout=15)
         response.raise_for_status()
-        
+
         soup = BeautifulSoup(response.text, 'html.parser')
-        
+
         # Look for DuckDuckGo's related searches section
         related_selectors = [
             '.module--related',  # DuckDuckGo related module
@@ -37,7 +37,7 @@ async def get_real_related_searches(query: str, http_client: httpx.AsyncClient) 
             '.search-filters',   # Search filter suggestions
             'a[data-result-id]', # Result links that might be suggestions
         ]
-        
+
         suggestions = []
         for selector in related_selectors:
             elements = soup.select(selector)
@@ -47,10 +47,10 @@ async def get_real_related_searches(query: str, http_client: httpx.AsyncClient) 
                     suggestions.append(text)
                     if len(suggestions) >= 10:
                         break
-            
+
             if suggestions:
                 break
-        
+
         # If no specific related section found, try to extract from result snippets
         if not suggestions:
             result_snippets = soup.select('.result__snippet')
@@ -66,10 +66,10 @@ async def get_real_related_searches(query: str, http_client: httpx.AsyncClient) 
                             suggestions.append(suggestion)
                             if len(suggestions) >= 10:
                                 break
-        
+
         logger.info(f"Found {len(suggestions)} related searches from HTML")
         return list(set(suggestions))[:10]  # Remove duplicates and limit
-        
+
     except Exception as e:
         logger.error(f"Failed to scrape related searches: {e}")
         return []
@@ -77,14 +77,14 @@ async def get_real_related_searches(query: str, http_client: httpx.AsyncClient) 
 def generate_contextual_suggestions(query: str) -> List[str]:
     """Generate contextual suggestions based on query analysis."""
     query_lower = query.lower()
-    
+
     # News/current events topics
     if any(word in query_lower for word in ['news', 'latest', 'today', 'current', 'break', 'update']):
         base_concepts = query_lower.replace('news', '').replace('today', '').replace('latest', '').replace('current', '').strip()
         return [
             f"{base_concepts} international news",
             f"{base_concepts} breaking news",
-            f"{base_concepts} live updates", 
+            f"{base_concepts} live updates",
             f"{base_concepts} background",
             f"{base_concepts} timeline",
             f"{base_concepts} analysis",
@@ -93,12 +93,12 @@ def generate_contextual_suggestions(query: str) -> List[str]:
             f"{base_concepts} latest developments",
             f"{base_concepts} recent news"
         ]
-    
+
     # Conflict/war topics (like Gaza)
     if any(word in query_lower for word in ['gaza', 'conflict', 'war', 'israel', 'palestine']):
         return [
             "Gaza humanitarian crisis",
-            "Israel Gaza ceasefire", 
+            "Israel Gaza ceasefire",
             "Palestinian perspective Gaza",
             "Gaza refugee situation",
             "UN Gaza resolution",
@@ -108,12 +108,12 @@ def generate_contextual_suggestions(query: str) -> List[str]:
             "Gaza border crossing",
             "Gaza Gaza Strip conflict history"
         ]
-    
+
     # Technology topics
     if any(word in query_lower for word in ['ai', 'technology', 'software', 'programming']):
         return [
             f"{query_lower} tutorial",
-            f"{query_lower} documentation", 
+            f"{query_lower} documentation",
             f"{query_lower} best practices",
             f"{query_lower} comparison",
             f"{query_lower} alternatives",
@@ -123,13 +123,13 @@ def generate_contextual_suggestions(query: str) -> List[str]:
             f"how to {query_lower}",
             f"{query_lower} vs"
         ]
-    
+
     # General scientific/academic topics
     if any(word in query_lower for word in ['research', 'study', 'analysis', 'theory']):
         return [
             f"{query_lower} methodology",
             f"{query_lower} findings",
-            f"{query_lower} implications", 
+            f"{query_lower} implications",
             f"{query_lower} limitations",
             f"{query_lower} applications",
             f"{query_lower} future research",
@@ -138,14 +138,14 @@ def generate_contextual_suggestions(query: str) -> List[str]:
             f"{query_lower} conclusions",
             f"{query_lower} summary"
         ]
-    
+
     # General contextual suggestions
     return [
         f"{query_lower} meaning",
-        f"{query_lower} definition", 
+        f"{query_lower} definition",
         f"{query_lower} examples",
         f"{query_lower} benefits",
-        f"{query_lower} problems", 
+        f"{query_lower} problems",
         f"{query_lower} alternatives",
         f"{query_lower} guide",
         f"how to {query_lower}",
@@ -356,7 +356,7 @@ def register_search_tools(mcp_server: FastMCP):
 
         # Fallback: Generate contextual suggestions based on topic analysis
         contextual_suggestions = generate_contextual_suggestions(query)
-        
+
         return {
             "original_query": query,
             "related_searches": contextual_suggestions[:max_suggestions],
