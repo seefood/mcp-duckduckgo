@@ -43,7 +43,7 @@ def create_mcp_server() -> FastMCP:
     )
 
     # Register tools directly with the server instance
-    from .tools_working import register_search_tools
+    from .tools import register_search_tools
     register_search_tools(server)
 
     return server

@@ -9,7 +9,7 @@ import httpx
 from bs4 import BeautifulSoup
 import urllib.parse
 
-from .search_new import search_web, extract_domain
+from .search import search_web, extract_domain
 
 logger = logging.getLogger(__name__)
 
