@@ -4,26 +4,100 @@ Working MCP tools implementation for DuckDuckGo search.
 
 import logging
 from typing import Any, Dict, List
+from urllib.parse import urlparse
 
 import httpx
 from bs4 import BeautifulSoup
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import Field
 
-from .search import extract_domain, search_web
+from .search import COMMON_HEADERS, DEFAULT_TIMEOUT, extract_domain, search_web
 
 logger = logging.getLogger(__name__)
+
+# Tool Configuration
+AUTOCOMPLETE_TIMEOUT = 10
+PAGE_FETCH_TIMEOUT = 15
+CONTENT_PREVIEW_LENGTH = 500
+MAX_PREVIEW_PARAGRAPHS = 5
+
+# Allowed URL schemes for security
+ALLOWED_URL_SCHEMES = {"http", "https"}
+
+# Content selectors for page extraction
+CONTENT_SELECTORS = [
+    "main article",
+    "article",
+    '[role="main"]',
+    ".content",
+    ".article-content",
+    ".post-content",
+    "#content",
+    "#article",
+    ".entry-content",
+]
+
+
+def validate_url(url: str) -> bool:
+    """
+    Validate URL scheme for security.
+
+    Args:
+        url: URL to validate
+
+    Returns:
+        True if URL scheme is allowed, False otherwise
+    """
+    try:
+        parsed = urlparse(url)
+        return parsed.scheme in ALLOWED_URL_SCHEMES
+    except Exception:
+        return False
+
+
+def get_http_client_from_context(ctx: Context) -> tuple[httpx.AsyncClient, bool]:
+    """
+    Get HTTP client from context or create a new one.
+
+    Args:
+        ctx: MCP context object
+
+    Returns:
+        Tuple of (http_client, should_close) where should_close indicates
+        whether the client should be closed after use
+    """
+    if (
+        hasattr(ctx, "lifespan_context")
+        and ctx.lifespan_context
+        and "http_client" in ctx.lifespan_context
+    ):
+        logger.info("Using HTTP client from lifespan context")
+        return ctx.lifespan_context["http_client"], False
+    else:
+        logger.info("Creating new HTTP client")
+        return httpx.AsyncClient(timeout=DEFAULT_TIMEOUT), True
 
 
 async def get_autocomplete_suggestions(
     query: str, http_client: httpx.AsyncClient
 ) -> List[str]:
-    """Get search suggestions from DuckDuckGo autocomplete API."""
+    """
+    Get search suggestions from DuckDuckGo autocomplete API.
+
+    Args:
+        query: Search query to get suggestions for
+        http_client: HTTP client to use for the request
+
+    Returns:
+        List of suggestion strings
+    """
     try:
         url = "https://duckduckgo.com/ac/"
         params = {"q": query, "type": "list"}
 
-        response = await http_client.get(url, params=params, timeout=10)
+        response = await http_client.get(
+            url, params=params, timeout=AUTOCOMPLETE_TIMEOUT
+        )
         response.raise_for_status()
 
         data = response.json()
@@ -52,54 +126,38 @@ def register_search_tools(mcp_server: FastMCP) -> None:
         """
         Search the web using DuckDuckGo.
 
-        Returns a list of search results with titles, URLs, descriptions, and domains.
+        Args:
+            query: Search query string (max 400 chars)
+            max_results: Maximum number of results to return (1-20)
+            ctx: MCP context object
+
+        Returns:
+            Dictionary containing search results with titles, URLs, descriptions, and domains
         """
         logger.info("Searching for: '%s' (max %d results)", query, max_results)
 
+        http_client, close_client = get_http_client_from_context(ctx)
+
         try:
-            # Get HTTP client from context
-            http_client = None
-            close_client = False
+            # Perform the search
+            results = await search_web(query, http_client, max_results)
 
-            # Try to get HTTP client from lifespan context
-            if (
-                hasattr(ctx, "lifespan_context")
-                and ctx.lifespan_context
-                and "http_client" in ctx.lifespan_context
-            ):
-                logger.info("Using HTTP client from lifespan context")
-                http_client = ctx.lifespan_context["http_client"]
-            else:
-                # Create a new HTTP client
-                logger.info("Creating new HTTP client")
-                http_client = httpx.AsyncClient(timeout=10.0)
-                close_client = True
-
-            try:
-                # Perform the search
-                results = await search_web(query, http_client, max_results)
-
-                # Convert to dict format
-                search_results = [
-                    {
-                        "title": result.title,
-                        "url": result.url,
-                        "description": result.description,
-                        "domain": result.domain,
-                    }
-                    for result in results
-                ]
-
-                return {
-                    "query": query,
-                    "results": search_results,
-                    "total_results": len(search_results),
-                    "status": "success",
+            # Convert to dict format
+            search_results = [
+                {
+                    "title": result.title,
+                    "url": result.url,
+                    "description": result.description,
+                    "domain": result.domain,
                 }
+                for result in results
+            ]
 
-            finally:
-                if close_client:
-                    await http_client.aclose()
+            return {
+                "query": query,
+                "results": search_results,
+                "total_results": len(search_results),
+            }
 
         except (httpx.RequestError, httpx.HTTPError, ValueError) as e:
             logger.error("Search failed: %s", e)
@@ -107,9 +165,11 @@ def register_search_tools(mcp_server: FastMCP) -> None:
                 "query": query,
                 "results": [],
                 "total_results": 0,
-                "status": "error",
                 "error": str(e),
             }
+        finally:
+            if close_client:
+                await http_client.aclose()
 
     @mcp_server.tool()
     async def get_page_content(
@@ -119,99 +179,92 @@ def register_search_tools(mcp_server: FastMCP) -> None:
         """
         Fetch and extract content from a web page.
 
-        Returns the page title, description, and main content.
+        Args:
+            url: URL of the page to fetch (must be http or https)
+            ctx: MCP context object
+
+        Returns:
+            Dictionary containing page title, description, content, and metadata
         """
         logger.info("Fetching content from: %s", url)
 
+        # Validate URL scheme for security
+        if not validate_url(url):
+            return {
+                "url": url,
+                "title": "",
+                "description": "",
+                "content": "",
+                "content_preview": "",
+                "domain": extract_domain(url),
+                "error": "Invalid URL scheme. Only http and https are allowed.",
+            }
+
+        http_client, close_client = get_http_client_from_context(ctx)
+
         try:
-            # Get HTTP client from context
-            http_client = getattr(ctx, "http_client", None)
-            if not http_client:
-                http_client = httpx.AsyncClient(timeout=15.0)
-                close_client = True
-            else:
-                close_client = False
+            response = await http_client.get(
+                url, headers=COMMON_HEADERS, timeout=PAGE_FETCH_TIMEOUT
+            )
+            response.raise_for_status()
 
-            try:
-                headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-                }
+            soup = BeautifulSoup(response.text, "html.parser")
 
-                response = await http_client.get(url, headers=headers, timeout=15)
-                response.raise_for_status()
+            # Extract title
+            title = ""
+            title_tag = soup.find("title")
+            if title_tag:
+                title = title_tag.get_text().strip()
 
-                soup = BeautifulSoup(response.text, "html.parser")
+            # Extract description from meta tags
+            description = ""
+            meta_desc = soup.find("meta", attrs={"name": "description"})
+            if meta_desc:
+                description = meta_desc.get("content", "").strip()  # type: ignore[union-attr]
 
-                # Extract title
-                title = ""
-                title_tag = soup.find("title")
-                if title_tag:
-                    title = title_tag.get_text().strip()
+            # Extract main content (try common content selectors)
+            content_text = ""
+            for selector in CONTENT_SELECTORS:
+                main_content = soup.select_one(selector)
+                if main_content:
+                    content_text = main_content.get_text().strip()
+                    break
 
-                # Extract description from meta tags
-                description = ""
-                meta_desc = soup.find("meta", attrs={"name": "description"})
-                if meta_desc:
-                    description = meta_desc.get("content", "").strip()  # type: ignore[union-attr]
+            # If no content found, get all paragraphs
+            if not content_text:
+                paragraphs = soup.find_all("p")[:MAX_PREVIEW_PARAGRAPHS]
+                content_text = "\n\n".join(p.get_text().strip() for p in paragraphs)
 
-                # Extract main content (try common content selectors)
-                content_text = ""
-                content_selectors = [
-                    "main article",
-                    "article",
-                    '[role="main"]',
-                    ".content",
-                    ".article-content",
-                    ".post-content",
-                    "#content",
-                    "#article",
-                    ".entry-content",
-                ]
+            # Clean up content (first N chars for preview)
+            content_preview = (
+                content_text[:CONTENT_PREVIEW_LENGTH] + "..."
+                if len(content_text) > CONTENT_PREVIEW_LENGTH
+                else content_text
+            )
 
-                for selector in content_selectors:
-                    main_content = soup.select_one(selector)
-                    if main_content:
-                        content_text = main_content.get_text().strip()
-                        break
+            return {
+                "url": url,
+                "title": title,
+                "description": description,
+                "content": content_text,
+                "content_preview": content_preview,
+                "domain": extract_domain(url),
+            }
 
-                # If no content found, get all paragraphs
-                if not content_text:
-                    paragraphs = soup.find_all("p")[:5]  # First 5 paragraphs
-                    content_text = "\n\n".join(p.get_text().strip() for p in paragraphs)
-
-                # Clean up content (first 500 chars for preview)
-                content_preview = (
-                    content_text[:500] + "..."
-                    if len(content_text) > 500
-                    else content_text
-                )
-
-                return {
-                    "url": url,
-                    "title": title,
-                    "description": description,
-                    "content": content_text,
-                    "content_preview": content_preview,
-                    "domain": extract_domain(url),
-                    "status": "success",
-                }
-
-            finally:
-                if close_client:
-                    await http_client.aclose()
-
-        except Exception as e:
+        except (httpx.RequestError, httpx.HTTPError) as e:
             logger.error("Failed to fetch content from %s: %s", url, e)
             return {
                 "url": url,
                 "title": "",
                 "description": "",
                 "content": "",
-                "content_preview": f"Error: {str(e)}",
+                "content_preview": "",
                 "domain": extract_domain(url),
-                "status": "error",
                 "error": str(e),
             }
+        finally:
+            if close_client:
+                await http_client.aclose()
 
     @mcp_server.tool()
     async def suggest_related_searches(
@@ -227,7 +280,13 @@ def register_search_tools(mcp_server: FastMCP) -> None:
         """
         Get search suggestions from DuckDuckGo autocomplete API.
 
-        Returns suggestions based on what people actually search for.
+        Args:
+            query: Original search query
+            max_suggestions: Maximum number of suggestions to return (1-10)
+            ctx: MCP context object
+
+        Returns:
+            Dictionary containing related search suggestions based on what people actually search for
         """
         logger.info(
             "Getting autocomplete suggestions for: '%s' (max %d suggestions)",
@@ -235,23 +294,9 @@ def register_search_tools(mcp_server: FastMCP) -> None:
             max_suggestions,
         )
 
-        # Get HTTP client from context
-        http_client = None
-        close_client = False
+        http_client, close_client = get_http_client_from_context(ctx)
 
         try:
-            if (
-                hasattr(ctx, "lifespan_context")
-                and ctx.lifespan_context
-                and "http_client" in ctx.lifespan_context
-            ):
-                logger.info("Using HTTP client from lifespan context")
-                http_client = ctx.lifespan_context["http_client"]
-            else:
-                logger.info("Creating new HTTP client")
-                http_client = httpx.AsyncClient(timeout=10.0)
-                close_client = True
-
             # Get autocomplete suggestions from DuckDuckGo
             suggestions = await get_autocomplete_suggestions(query, http_client)
 
@@ -270,5 +315,5 @@ def register_search_tools(mcp_server: FastMCP) -> None:
                 "error": str(e),
             }
         finally:
-            if close_client and http_client:
+            if close_client:
                 await http_client.aclose()
