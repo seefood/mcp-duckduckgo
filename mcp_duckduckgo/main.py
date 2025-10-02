@@ -32,10 +32,18 @@ def initialize_mcp() -> Any:
     server_module = importlib.import_module(".server", package="mcp_duckduckgo")
     mcp = server_module.create_mcp_server()
 
-    # Import all MCP components to register them
-    importlib.import_module(".tools", package="mcp_duckduckgo")
+    # Import and register all MCP components
+    # Import resources and prompts (these work with @decorator approach)
     importlib.import_module(".resources", package="mcp_duckduckgo")
     importlib.import_module(".prompts", package="mcp_duckduckgo")
+    
+    # Register tools using the new approach
+    try:
+        tools_module = importlib.import_module(".tools_fixed", package="mcp_duckduckgo")
+        tools_module.register_tools(mcp)
+    except ImportError:
+        # Fallback to original approach
+        importlib.import_module(".tools", package="mcp_duckduckgo")
 
     return mcp
 
@@ -57,7 +65,7 @@ def main():
     """Run the MCP server."""
     # Configure logging first
     configure_logging()
-    
+
     try:
         # Parse command line arguments
         args = parse_args()
