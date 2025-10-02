@@ -33,7 +33,7 @@ def register_search_tools(mcp_server: FastMCP):
             # Get HTTP client from context
             http_client = None
             close_client = False
-            
+
             # Try to get HTTP client from lifespan context
             if hasattr(ctx, 'lifespan_context') and ctx.lifespan_context and 'http_client' in ctx.lifespan_context:
                 logger.info("Using HTTP client from lifespan context")

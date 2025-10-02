@@ -195,18 +195,18 @@ async def search_duckduckgo_html(query: str, http_client: httpx.AsyncClient, cou
 async def search_web(query: str, http_client: httpx.AsyncClient, count: int = 10) -> List[SearchResult]:
     """Main search function that tries multiple methods."""
     logger.info(f"Searching for: '{query}' (max {count} results)")
-    
+
     # Try instant answers first
     instant_results = await search_duckduckgo_instant(query, http_client)
     logger.info(f"Instant answers found {len(instant_results)} results")
-    
+
     # Always try HTML search for more comprehensive results
     html_results = await search_duckduckgo_html(query, http_client, count)
     logger.info(f"HTML search found {len(html_results)} results")
-    
+
     # Combine and deduplicate
     all_results = instant_results + html_results
-    
+
     # Remove duplicates based on URL
     seen_urls = set()
     unique_results = []
@@ -216,6 +216,6 @@ async def search_web(query: str, http_client: httpx.AsyncClient, count: int = 10
             unique_results.append(result)
             if len(unique_results) >= count:
                 break
-    
+
     logger.info(f"Returning {len(unique_results)} unique valid results")
     return unique_results
