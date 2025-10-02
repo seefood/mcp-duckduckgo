@@ -15,146 +15,27 @@ from .search import extract_domain, search_web
 logger = logging.getLogger(__name__)
 
 
-async def get_real_related_searches(
+async def get_autocomplete_suggestions(
     query: str, http_client: httpx.AsyncClient
 ) -> List[str]:
-    """Get actual related searches from DuckDuckGo HTML."""
+    """Get search suggestions from DuckDuckGo autocomplete API."""
     try:
-        url = "https://html.duckduckgo.com/html/"
-        params = {"q": query}
+        url = "https://duckduckgo.com/ac/"
+        params = {"q": query, "type": "list"}
 
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-        }
-
-        response = await http_client.get(
-            url, params=params, headers=headers, timeout=15
-        )
+        response = await http_client.get(url, params=params, timeout=10)
         response.raise_for_status()
 
-        soup = BeautifulSoup(response.text, "html.parser")
+        data = response.json()
+        # Response format: ["query", ["suggestion1", "suggestion2", ...]]
+        suggestions = data[1] if len(data) > 1 and isinstance(data[1], list) else []
 
-        # Look for DuckDuckGo's related searches section
-        related_selectors = [
-            ".module--related",  # DuckDuckGo related module
-            ".related-sites",  # Alternative related sites selector
-            ".search-filters",  # Search filter suggestions
-            "a[data-result-id]",  # Result links that might be suggestions
-        ]
-
-        suggestions = []
-        for selector in related_selectors:
-            elements = soup.select(selector)
-            for elem in elements:
-                text = elem.get_text().strip()
-                if text and len(text) > 3 and text.lower() != query.lower():
-                    suggestions.append(text)
-                    if len(suggestions) >= 10:
-                        break
-
-            if suggestions:
-                break
-
-        # If no specific related section found, try to extract from result snippets
-        if not suggestions:
-            result_snippets = soup.select(".result__snippet")
-            for snippet in result_snippets[:5]:
-                text = snippet.get_text().strip()
-                # Extract potential search terms from snippets
-                words = text.split()
-                if len(words) >= 3:
-                    # Create variations using words from snippet
-                    for i in range(len(words) - 2):
-                        suggestion = " ".join(words[i : i + 3])
-                        if suggestion.lower() != query.lower() and len(suggestion) > 5:
-                            suggestions.append(suggestion)
-                            if len(suggestions) >= 10:
-                                break
-
-        logger.info("Found %d related searches from HTML", len(suggestions))
-        return list(set(suggestions))[:10]  # Remove duplicates and limit
+        logger.info("Found %d autocomplete suggestions", len(suggestions))
+        return suggestions
 
     except (httpx.RequestError, httpx.HTTPError, ValueError) as e:
-        logger.error("Failed to scrape related searches: %s", e)
+        logger.error("Failed to get autocomplete suggestions: %s", e)
         return []
-
-
-def generate_contextual_suggestions(query: str) -> List[str]:
-    """Generate contextual suggestions based on query analysis."""
-    query_lower = query.lower()
-
-    # News/current events topics
-    if any(
-        word in query_lower
-        for word in ["news", "latest", "today", "current", "break", "update"]
-    ):
-        base_concepts = (
-            query_lower.replace("news", "")
-            .replace("today", "")
-            .replace("latest", "")
-            .replace("current", "")
-            .strip()
-        )
-        return [
-            f"{base_concepts} international news",
-            f"{base_concepts} breaking news",
-            f"{base_concepts} live updates",
-            f"{base_concepts} background",
-            f"{base_concepts} timeline",
-            f"{base_concepts} analysis",
-            f"what happened to {base_concepts}",
-            f"{base_concepts} developments",
-            f"{base_concepts} latest developments",
-            f"{base_concepts} recent news",
-        ]
-
-    # Technology topics
-    if any(
-        word in query_lower for word in ["ai", "technology", "software", "programming"]
-    ):
-        return [
-            f"{query_lower} tutorial",
-            f"{query_lower} documentation",
-            f"{query_lower} best practices",
-            f"{query_lower} comparison",
-            f"{query_lower} alternatives",
-            f"{query_lower} examples",
-            f"{query_lower} implementation",
-            f"{query_lower} guide",
-            f"how to {query_lower}",
-            f"{query_lower} vs",
-        ]
-
-    # General scientific/academic topics
-    if any(word in query_lower for word in ["research", "study", "analysis", "theory"]):
-        return [
-            f"{query_lower} methodology",
-            f"{query_lower} findings",
-            f"{query_lower} implications",
-            f"{query_lower} limitations",
-            f"{query_lower} applications",
-            f"{query_lower} future research",
-            f"{query_lower} literature review",
-            f"{query_lower} data",
-            f"{query_lower} conclusions",
-            f"{query_lower} summary",
-        ]
-
-    # General contextual suggestions
-    return [
-        f"{query_lower} meaning",
-        f"{query_lower} definition",
-        f"{query_lower} examples",
-        f"{query_lower} benefits",
-        f"{query_lower} problems",
-        f"{query_lower} alternatives",
-        f"{query_lower} guide",
-        f"how to {query_lower}",
-        f"what is {query_lower}",
-        f"{query_lower} vs",
-    ]
 
 
 def register_search_tools(mcp_server: FastMCP) -> None:
@@ -344,19 +225,21 @@ def register_search_tools(mcp_server: FastMCP) -> None:
         ctx: Context = Field(default_factory=Context),
     ) -> Dict[str, Any]:
         """
-        Suggest related search queries based on the original query.
+        Get search suggestions from DuckDuckGo autocomplete API.
+
+        Returns suggestions based on what people actually search for.
         """
         logger.info(
-            "Getting related searches for: '%s' (max %d suggestions)",
+            "Getting autocomplete suggestions for: '%s' (max %d suggestions)",
             query,
             max_suggestions,
         )
 
-        try:
-            # Get HTTP client from context
-            http_client = None
-            close_client = False
+        # Get HTTP client from context
+        http_client = None
+        close_client = False
 
+        try:
             if (
                 hasattr(ctx, "lifespan_context")
                 and ctx.lifespan_context
@@ -369,29 +252,23 @@ def register_search_tools(mcp_server: FastMCP) -> None:
                 http_client = httpx.AsyncClient(timeout=10.0)
                 close_client = True
 
-            try:
-                # Try to get actual related searches from DuckDuckGo HTML
-                suggestions = await get_real_related_searches(query, http_client)
-                if suggestions:
-                    return {
-                        "original_query": query,
-                        "related_searches": suggestions[:max_suggestions],
-                        "count": len(suggestions[:max_suggestions]),
-                        "status": "success",
-                    }
-            finally:
-                if close_client and http_client:
-                    await http_client.aclose()
+            # Get autocomplete suggestions from DuckDuckGo
+            suggestions = await get_autocomplete_suggestions(query, http_client)
 
-        except Exception as e:
-            logger.error("Failed to get real related searches: %s", e)
+            return {
+                "original_query": query,
+                "related_searches": suggestions[:max_suggestions],
+                "count": len(suggestions[:max_suggestions]),
+            }
 
-        # Fallback: Generate contextual suggestions based on topic analysis
-        contextual_suggestions = generate_contextual_suggestions(query)
-
-        return {
-            "original_query": query,
-            "related_searches": contextual_suggestions[:max_suggestions],
-            "count": len(contextual_suggestions[:max_suggestions]),
-            "status": "contextual",  # Indicate these are contextual not scraped
-        }
+        except (httpx.RequestError, httpx.HTTPError, ValueError) as e:
+            logger.error("Failed to get autocomplete suggestions: %s", e)
+            return {
+                "original_query": query,
+                "related_searches": [],
+                "count": 0,
+                "error": str(e),
+            }
+        finally:
+            if close_client and http_client:
+                await http_client.aclose()
