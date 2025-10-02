@@ -3,14 +3,9 @@
 __version__ = "0.2.0"
 
 from .models import SearchResult, SearchResponse
-from .search import duckduckgo_search
-from .server import mcp
-from .tools import duckduckgo_web_search
 
 __all__ = [
+    "__version__",
     "SearchResult",
     "SearchResponse",
-    "duckduckgo_search",
-    "duckduckgo_web_search",
-    "mcp",
 ]

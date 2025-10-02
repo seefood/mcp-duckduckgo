@@ -46,6 +46,11 @@ def parse_args():
         default=3000,
         help="Port number for the MCP server (default: 3000)"
     )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version="mcp-duckduckgo v" + __import__("mcp_duckduckgo", fromlist=["__version__"]).__version__
+    )
     return parser.parse_args()
 
 def main():
