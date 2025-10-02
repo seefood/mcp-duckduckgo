@@ -76,7 +76,7 @@ async def search_duckduckgo_html(query: str, http_client: httpx.AsyncClient, cou
 
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml, application/xml;q=0.9,*/*;q=0.8",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.5",
             "Accept-Encoding": "gzip, deflate",
             "Connection": "keep-alive",
@@ -89,13 +89,55 @@ async def search_duckduckgo_html(query: str, http_client: httpx.AsyncClient, cou
         soup = BeautifulSoup(response.text, 'html.parser')
         results = []
 
-        # Find DuckDuckGo search result blocks
-        result_divs = soup.find_all('div', class_='result')
+        # DuckDuckGo result selectors (multiple attempts for robustness)
+        result_selectors = [
+            'div.result',
+            'div[class*="result"]',
+            '.result',
+            '.web-result',
+            '.result_body'
+        ]
+
+        result_divs = []
+        for selector in result_selectors:
+            result_divs = soup.select(selector)
+            if result_divs:
+                logger.info(f"Found {len(result_divs)} results with selector: {selector}")
+                break
+
+        if not result_divs:
+            logger.warning("No result divs found, trying fallback method")
+            # Fallback: look for links that might be search results
+            all_links = soup.find_all('a', href=True)
+            for link in all_links[:count]:
+                href = link.get('href', '')
+                text = link.get_text().strip()
+                if href and text and not href.startswith('#'):
+                    results.append(SearchResult(
+                        title=text,
+                        url=href,
+                        description="",
+                        domain=extract_domain(href)
+                    ))
+            return results[:count]
 
         for i, div in enumerate(result_divs[:count]):
             try:
-                # Extract title and URL
-                title_link = div.find('a', class_='result__a')
+                # Multiple title/link selectors
+                title_selectors = [
+                    'a.result__a',
+                    'a[class*="result"]',
+                    '.result__title a',
+                    'h3 a',
+                    'a'
+                ]
+
+                title_link = None
+                for selector in title_selectors:
+                    title_link = div.select_one(selector)
+                    if title_link:
+                        break
+
                 if not title_link:
                     continue
 
@@ -103,16 +145,33 @@ async def search_duckduckgo_html(query: str, http_client: httpx.AsyncClient, cou
                 url = title_link.get('href', '')
 
                 # Extract snippet/description
-                snippet_div = div.find('a', class_='result__snippet')
-                description = snippet_div.get_text().strip() if snippet_div else ""
+                snippet_selectors = [
+                    'a.result__snippet',
+                    '.result__snippet',
+                    '.result__body',
+                    '.snippet',
+                    'p'
+                ]
+
+                description = ""
+                for selector in snippet_selectors:
+                    snippet_elem = div.select_one(selector)
+                    if snippet_elem:
+                        description = snippet_elem.get_text().strip()
+                        break
 
                 # Clean up URL (remove DuckDuckGo redirect)
                 if url.startswith('/l/?uddg='):
-                    # This is a DuckDuckGo redirect, extract the actual URL
-                    import urllib.parse as urlparse
-                    querystr = urlparse.parse_qs(urlparse.urlparse(url).query)
-                    if 'uddg' in querystr:
-                        url = querystr['uddg'][0]
+                    try:
+                        querystr = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+                        if 'uddg' in querystr:
+                            url = querystr['uddg'][0]
+                    except:
+                        pass
+
+                # Skip if no valid URL or title
+                if not url or not title:
+                    continue
 
                 results.append(SearchResult(
                     title=title,
@@ -125,33 +184,38 @@ async def search_duckduckgo_html(query: str, http_client: httpx.AsyncClient, cou
                 logger.warning(f"Failed to parse result {i}: {e}")
                 continue
 
+        logger.info(f"Successfully parsed {len(results)} HTML results")
         return results
 
     except Exception as e:
         logger.error(f"DuckDuckGo HTML search failed: {e}")
         return []
 
+
 async def search_web(query: str, http_client: httpx.AsyncClient, count: int = 10) -> List[SearchResult]:
     """Main search function that tries multiple methods."""
     logger.info(f"Searching for: '{query}' (max {count} results)")
-
+    
     # Try instant answers first
-    results = await search_duckduckgo_instant(query, http_client)
-
-    # If not enough results, try HTML search
-    if len(results) < count:
-        html_results = await search_duckduckgo_html(query, http_client, count - len(results))
-        results.extend(html_results)
-
+    instant_results = await search_duckduckgo_instant(query, http_client)
+    logger.info(f"Instant answers found {len(instant_results)} results")
+    
+    # Always try HTML search for more comprehensive results
+    html_results = await search_duckduckgo_html(query, http_client, count)
+    logger.info(f"HTML search found {len(html_results)} results")
+    
+    # Combine and deduplicate
+    all_results = instant_results + html_results
+    
     # Remove duplicates based on URL
     seen_urls = set()
     unique_results = []
-    for result in results:
-        if result.url not in seen_urls and result.url:
+    for result in all_results:
+        if result.url and result.url not in seen_urls and result.url.startswith('http'):
             seen_urls.add(result.url)
             unique_results.append(result)
             if len(unique_results) >= count:
                 break
-
-    logger.info(f"Found {len(unique_results)} unique results")
-    return unique_results[:count]
+    
+    logger.info(f"Returning {len(unique_results)} unique valid results")
+    return unique_results
