@@ -28,22 +28,9 @@ def configure_logging():
 
 def initialize_mcp() -> Any:
     """Initialize MCP server and register components."""
-    # Import server module and create server instance
+    # Import server module and create server instance (tools already registered)
     server_module = importlib.import_module(".server", package="mcp_duckduckgo")
     mcp = server_module.create_mcp_server()
-
-    # Import and register all MCP components
-    # Import resources and prompts (these work with @decorator approach)
-    importlib.import_module(".resources", package="mcp_duckduckgo")
-    importlib.import_module(".prompts", package="mcp_duckduckgo")
-    
-    # Register tools using the new approach
-    try:
-        tools_module = importlib.import_module(".tools_fixed", package="mcp_duckduckgo")
-        tools_module.register_tools(mcp)
-    except ImportError:
-        # Fallback to original approach
-        importlib.import_module(".tools", package="mcp_duckduckgo")
 
     return mcp
 
@@ -79,13 +66,10 @@ def main():
             if args.port != 3000:
                 os.environ["MCP_PORT"] = str(args.port)
             logger.info("Starting DuckDuckGo Search MCP server on port %s", args.port)
-            logger.info("Available endpoints:")
-            logger.info("- Tool: duckduckgo_web_search")
-            logger.info("- Tools: duckduckgo_get_details")
-            logger.info("- Tool: duckduckgo_related_searches")
-            logger.info("- Resource: docs://search")
-            logger.info("- Resource: search://{query}")
-            logger.info("- Prompt: search_assistant")
+            logger.info("Available tools:")
+            logger.info("- web_search")
+            logger.info("- get_page_content")
+            logger.info("- suggest_related_searches")
         # In stdio mode, FastMCP will automatically detect and handle protocol
 
         # Run the MCP server
