@@ -4,14 +4,15 @@ This module implements a web search function using the DuckDuckGo API.
 """
 
 import argparse
-import logging
 import importlib
+import logging
 import os
 import sys
 from typing import Any
 
 # Configure logging
 logger = logging.getLogger("mcp_duckduckgo")
+
 
 def configure_logging():
     """Configure logging based on environment."""
@@ -26,6 +27,7 @@ def configure_logging():
         # Running as MCP tool (stdio) - disable logging to avoid interfering with protocol
         logging.basicConfig(level=logging.CRITICAL)
 
+
 def initialize_mcp() -> Any:
     """Initialize MCP server and register components."""
     # Import server module and create server instance (tools already registered)
@@ -34,24 +36,22 @@ def initialize_mcp() -> Any:
 
     return mcp
 
+
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         description="DuckDuckGo search plugin for Model Context Protocol",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--port",
         type=int,
         default=3000,
-        help="Port number for the MCP server (default: 3000)"
+        help="Port number for the MCP server (default: 3000)",
     )
-    parser.add_argument(
-        "--version",
-        action="version",
-        version="mcp-duckduckgo v0.2.0"
-    )
+    parser.add_argument("--version", action="version", version="mcp-duckduckgo v0.2.0")
     return parser.parse_args()
+
 
 def main():
     """Run the MCP server."""
@@ -84,6 +84,7 @@ def main():
     except Exception as e:
         logger.error("Error starting server: %s", e, exc_info=True)
         raise
+
 
 if __name__ == "__main__":
     main()

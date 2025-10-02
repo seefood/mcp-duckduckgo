@@ -3,14 +3,17 @@ Server setup and lifespan management for the DuckDuckGo search plugin.
 """
 
 import logging
-from typing import Dict, Any, AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any, AsyncIterator, Dict
 
 import httpx
 from mcp.server.fastmcp import FastMCP
 
+from .tools import register_search_tools
+
 # Server logging will be configured by the main module
 logger = logging.getLogger("mcp_duckduckgo.server")
+
 
 @asynccontextmanager
 async def app_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
@@ -27,7 +30,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
                 "Accept-Encoding": "gzip, deflate",
                 "Connection": "keep-alive",
                 "Upgrade-Insecure-Requests": "1",
-            }
+            },
         )
         yield {"http_client": http_client}
     finally:
@@ -35,18 +38,16 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
         logger.info("Shutting down DuckDuckGo search server")
         await http_client.aclose()
 
+
 def create_mcp_server() -> FastMCP:
     """Create and return a FastMCP server instance with proper tool registration."""
-    server = FastMCP(
-        "DuckDuckGo Search",
-        lifespan=app_lifespan
-    )
+    server = FastMCP("DuckDuckGo Search", lifespan=app_lifespan)
 
     # Register tools directly with the server instance
-    from .tools import register_search_tools
     register_search_tools(server)
 
     return server
+
 
 # Initialize FastMCP server instance for backward compatibility
 mcp_server = create_mcp_server()

@@ -1,19 +1,23 @@
 """
 Working MCP tools implementation for DuckDuckGo search.
 """
+
 import logging
-from typing import List, Dict, Any
-from mcp.server.fastmcp import FastMCP, Context
-from pydantic import Field
+from typing import Any, Dict, List
+
 import httpx
 from bs4 import BeautifulSoup
-import urllib.parse
+from mcp.server.fastmcp import Context, FastMCP
+from pydantic import Field
 
-from .search import search_web, extract_domain
+from .search import extract_domain, search_web
 
 logger = logging.getLogger(__name__)
 
-async def get_real_related_searches(query: str, http_client: httpx.AsyncClient) -> List[str]:
+
+async def get_real_related_searches(
+    query: str, http_client: httpx.AsyncClient
+) -> List[str]:
     """Get actual related searches from DuckDuckGo HTML."""
     try:
         url = "https://html.duckduckgo.com/html/"
@@ -25,17 +29,19 @@ async def get_real_related_searches(query: str, http_client: httpx.AsyncClient) 
             "Accept-Language": "en-US,en;q=0.5",
         }
 
-        response = await http_client.get(url, params=params, headers=headers, timeout=15)
+        response = await http_client.get(
+            url, params=params, headers=headers, timeout=15
+        )
         response.raise_for_status()
 
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = BeautifulSoup(response.text, "html.parser")
 
         # Look for DuckDuckGo's related searches section
         related_selectors = [
-            '.module--related',  # DuckDuckGo related module
-            '.related-sites',    # Alternative related sites selector
-            '.search-filters',   # Search filter suggestions
-            'a[data-result-id]', # Result links that might be suggestions
+            ".module--related",  # DuckDuckGo related module
+            ".related-sites",  # Alternative related sites selector
+            ".search-filters",  # Search filter suggestions
+            "a[data-result-id]",  # Result links that might be suggestions
         ]
 
         suggestions = []
@@ -53,34 +59,44 @@ async def get_real_related_searches(query: str, http_client: httpx.AsyncClient) 
 
         # If no specific related section found, try to extract from result snippets
         if not suggestions:
-            result_snippets = soup.select('.result__snippet')
+            result_snippets = soup.select(".result__snippet")
             for snippet in result_snippets[:5]:
                 text = snippet.get_text().strip()
                 # Extract potential search terms from snippets
                 words = text.split()
                 if len(words) >= 3:
                     # Create variations using words from snippet
-                    for i in range(len(words)-2):
-                        suggestion = ' '.join(words[i:i+3])
+                    for i in range(len(words) - 2):
+                        suggestion = " ".join(words[i : i + 3])
                         if suggestion.lower() != query.lower() and len(suggestion) > 5:
                             suggestions.append(suggestion)
                             if len(suggestions) >= 10:
                                 break
 
-        logger.info(f"Found {len(suggestions)} related searches from HTML")
+        logger.info("Found %d related searches from HTML", len(suggestions))
         return list(set(suggestions))[:10]  # Remove duplicates and limit
 
-    except Exception as e:
-        logger.error(f"Failed to scrape related searches: {e}")
+    except (httpx.RequestError, httpx.HTTPError, ValueError) as e:
+        logger.error("Failed to scrape related searches: %s", e)
         return []
+
 
 def generate_contextual_suggestions(query: str) -> List[str]:
     """Generate contextual suggestions based on query analysis."""
     query_lower = query.lower()
 
     # News/current events topics
-    if any(word in query_lower for word in ['news', 'latest', 'today', 'current', 'break', 'update']):
-        base_concepts = query_lower.replace('news', '').replace('today', '').replace('latest', '').replace('current', '').strip()
+    if any(
+        word in query_lower
+        for word in ["news", "latest", "today", "current", "break", "update"]
+    ):
+        base_concepts = (
+            query_lower.replace("news", "")
+            .replace("today", "")
+            .replace("latest", "")
+            .replace("current", "")
+            .strip()
+        )
         return [
             f"{base_concepts} international news",
             f"{base_concepts} breaking news",
@@ -91,26 +107,13 @@ def generate_contextual_suggestions(query: str) -> List[str]:
             f"what happened to {base_concepts}",
             f"{base_concepts} developments",
             f"{base_concepts} latest developments",
-            f"{base_concepts} recent news"
-        ]
-
-    # Conflict/war topics (like Gaza)
-    if any(word in query_lower for word in ['gaza', 'conflict', 'war', 'israel', 'palestine']):
-        return [
-            "Gaza humanitarian crisis",
-            "Israel Gaza ceasefire",
-            "Palestinian perspective Gaza",
-            "Gaza refugee situation",
-            "UN Gaza resolution",
-            "Gaza reconstruction",
-            "Gaza casualties statistics",
-            "Gaza hostage situation",
-            "Gaza border crossing",
-            "Gaza Gaza Strip conflict history"
+            f"{base_concepts} recent news",
         ]
 
     # Technology topics
-    if any(word in query_lower for word in ['ai', 'technology', 'software', 'programming']):
+    if any(
+        word in query_lower for word in ["ai", "technology", "software", "programming"]
+    ):
         return [
             f"{query_lower} tutorial",
             f"{query_lower} documentation",
@@ -121,11 +124,11 @@ def generate_contextual_suggestions(query: str) -> List[str]:
             f"{query_lower} implementation",
             f"{query_lower} guide",
             f"how to {query_lower}",
-            f"{query_lower} vs"
+            f"{query_lower} vs",
         ]
 
     # General scientific/academic topics
-    if any(word in query_lower for word in ['research', 'study', 'analysis', 'theory']):
+    if any(word in query_lower for word in ["research", "study", "analysis", "theory"]):
         return [
             f"{query_lower} methodology",
             f"{query_lower} findings",
@@ -136,7 +139,7 @@ def generate_contextual_suggestions(query: str) -> List[str]:
             f"{query_lower} literature review",
             f"{query_lower} data",
             f"{query_lower} conclusions",
-            f"{query_lower} summary"
+            f"{query_lower} summary",
         ]
 
     # General contextual suggestions
@@ -150,16 +153,19 @@ def generate_contextual_suggestions(query: str) -> List[str]:
         f"{query_lower} guide",
         f"how to {query_lower}",
         f"what is {query_lower}",
-        f"{query_lower} vs"
+        f"{query_lower} vs",
     ]
 
-def register_search_tools(mcp_server: FastMCP):
+
+def register_search_tools(mcp_server: FastMCP) -> None:
     """Register all search tools with the MCP server."""
 
     @mcp_server.tool()
     async def web_search(
         query: str = Field(..., description="Search query", max_length=400),
-        max_results: int = Field(10, description="Maximum number of results to return (1-20)", ge=1, le=20),
+        max_results: int = Field(
+            10, description="Maximum number of results to return (1-20)", ge=1, le=20
+        ),
         ctx: Context = Field(default_factory=Context),
     ) -> Dict[str, Any]:
         """
@@ -167,7 +173,7 @@ def register_search_tools(mcp_server: FastMCP):
 
         Returns a list of search results with titles, URLs, descriptions, and domains.
         """
-        logger.info(f"Searching for: '{query}' (max {max_results} results)")
+        logger.info("Searching for: '%s' (max %d results)", query, max_results)
 
         try:
             # Get HTTP client from context
@@ -175,7 +181,11 @@ def register_search_tools(mcp_server: FastMCP):
             close_client = False
 
             # Try to get HTTP client from lifespan context
-            if hasattr(ctx, 'lifespan_context') and ctx.lifespan_context and 'http_client' in ctx.lifespan_context:
+            if (
+                hasattr(ctx, "lifespan_context")
+                and ctx.lifespan_context
+                and "http_client" in ctx.lifespan_context
+            ):
                 logger.info("Using HTTP client from lifespan context")
                 http_client = ctx.lifespan_context["http_client"]
             else:
@@ -194,7 +204,7 @@ def register_search_tools(mcp_server: FastMCP):
                         "title": result.title,
                         "url": result.url,
                         "description": result.description,
-                        "domain": result.domain
+                        "domain": result.domain,
                     }
                     for result in results
                 ]
@@ -203,21 +213,21 @@ def register_search_tools(mcp_server: FastMCP):
                     "query": query,
                     "results": search_results,
                     "total_results": len(search_results),
-                    "status": "success"
+                    "status": "success",
                 }
 
             finally:
                 if close_client:
                     await http_client.aclose()
 
-        except Exception as e:
-            logger.error(f"Search failed: {e}")
+        except (httpx.RequestError, httpx.HTTPError, ValueError) as e:
+            logger.error("Search failed: %s", e)
             return {
                 "query": query,
                 "results": [],
                 "total_results": 0,
                 "status": "error",
-                "error": str(e)
+                "error": str(e),
             }
 
     @mcp_server.tool()
@@ -230,11 +240,11 @@ def register_search_tools(mcp_server: FastMCP):
 
         Returns the page title, description, and main content.
         """
-        logger.info(f"Fetching content from: {url}")
+        logger.info("Fetching content from: %s", url)
 
         try:
             # Get HTTP client from context
-            http_client = getattr(ctx, 'http_client', None)
+            http_client = getattr(ctx, "http_client", None)
             if not http_client:
                 http_client = httpx.AsyncClient(timeout=15.0)
                 close_client = True
@@ -249,26 +259,32 @@ def register_search_tools(mcp_server: FastMCP):
                 response = await http_client.get(url, headers=headers, timeout=15)
                 response.raise_for_status()
 
-                soup = BeautifulSoup(response.text, 'html.parser')
+                soup = BeautifulSoup(response.text, "html.parser")
 
                 # Extract title
                 title = ""
-                title_tag = soup.find('title')
+                title_tag = soup.find("title")
                 if title_tag:
                     title = title_tag.get_text().strip()
 
                 # Extract description from meta tags
                 description = ""
-                meta_desc = soup.find('meta', attrs={'name': 'description'})
+                meta_desc = soup.find("meta", attrs={"name": "description"})
                 if meta_desc:
-                    description = meta_desc.get('content', '').strip()
+                    description = meta_desc.get("content", "").strip()  # type: ignore[union-attr]
 
                 # Extract main content (try common content selectors)
                 content_text = ""
                 content_selectors = [
-                    'main article', 'article', '[role="main"]',
-                    '.content', '.article-content', '.post-content',
-                    '#content', '#article', '.entry-content'
+                    "main article",
+                    "article",
+                    '[role="main"]',
+                    ".content",
+                    ".article-content",
+                    ".post-content",
+                    "#content",
+                    "#article",
+                    ".entry-content",
                 ]
 
                 for selector in content_selectors:
@@ -279,12 +295,15 @@ def register_search_tools(mcp_server: FastMCP):
 
                 # If no content found, get all paragraphs
                 if not content_text:
-                    paragraphs = soup.find_all('p')[:5]  # First 5 paragraphs
-                    content_text = '\n\n'.join(p.get_text().strip() for p in paragraphs)
-
+                    paragraphs = soup.find_all("p")[:5]  # First 5 paragraphs
+                    content_text = "\n\n".join(p.get_text().strip() for p in paragraphs)
 
                 # Clean up content (first 500 chars for preview)
-                content_preview = content_text[:500] + "..." if len(content_text) > 500 else content_text
+                content_preview = (
+                    content_text[:500] + "..."
+                    if len(content_text) > 500
+                    else content_text
+                )
 
                 return {
                     "url": url,
@@ -293,7 +312,7 @@ def register_search_tools(mcp_server: FastMCP):
                     "content": content_text,
                     "content_preview": content_preview,
                     "domain": extract_domain(url),
-                    "status": "success"
+                    "status": "success",
                 }
 
             finally:
@@ -301,7 +320,7 @@ def register_search_tools(mcp_server: FastMCP):
                     await http_client.aclose()
 
         except Exception as e:
-            logger.error(f"Failed to fetch content from {url}: {e}")
+            logger.error("Failed to fetch content from %s: %s", url, e)
             return {
                 "url": url,
                 "title": "",
@@ -310,26 +329,39 @@ def register_search_tools(mcp_server: FastMCP):
                 "content_preview": f"Error: {str(e)}",
                 "domain": extract_domain(url),
                 "status": "error",
-                "error": str(e)
+                "error": str(e),
             }
 
     @mcp_server.tool()
     async def suggest_related_searches(
         query: str = Field(..., description="Original search query"),
-        max_suggestions: int = Field(5, ge=1, le=10, description="Maximum number of related suggestions to return"),
+        max_suggestions: int = Field(
+            5,
+            ge=1,
+            le=10,
+            description="Maximum number of related suggestions to return",
+        ),
         ctx: Context = Field(default_factory=Context),
     ) -> Dict[str, Any]:
         """
         Suggest related search queries based on the original query.
         """
-        logger.info(f"Getting related searches for: '{query}' (max {max_suggestions} suggestions)")
+        logger.info(
+            "Getting related searches for: '%s' (max %d suggestions)",
+            query,
+            max_suggestions,
+        )
 
         try:
             # Get HTTP client from context
             http_client = None
             close_client = False
 
-            if hasattr(ctx, 'lifespan_context') and ctx.lifespan_context and 'http_client' in ctx.lifespan_context:
+            if (
+                hasattr(ctx, "lifespan_context")
+                and ctx.lifespan_context
+                and "http_client" in ctx.lifespan_context
+            ):
                 logger.info("Using HTTP client from lifespan context")
                 http_client = ctx.lifespan_context["http_client"]
             else:
@@ -345,14 +377,14 @@ def register_search_tools(mcp_server: FastMCP):
                         "original_query": query,
                         "related_searches": suggestions[:max_suggestions],
                         "count": len(suggestions[:max_suggestions]),
-                        "status": "success"
+                        "status": "success",
                     }
             finally:
                 if close_client and http_client:
                     await http_client.aclose()
 
         except Exception as e:
-            logger.error(f"Failed to get real related searches: {e}")
+            logger.error("Failed to get real related searches: %s", e)
 
         # Fallback: Generate contextual suggestions based on topic analysis
         contextual_suggestions = generate_contextual_suggestions(query)
@@ -361,5 +393,5 @@ def register_search_tools(mcp_server: FastMCP):
             "original_query": query,
             "related_searches": contextual_suggestions[:max_suggestions],
             "count": len(contextual_suggestions[:max_suggestions]),
-            "status": "contextual"  # Indicate these are contextual not scraped
+            "status": "contextual",  # Indicate these are contextual not scraped
         }
