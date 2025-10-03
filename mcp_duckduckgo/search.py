@@ -12,6 +12,43 @@ from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
+# HTTP Configuration
+DEFAULT_TIMEOUT = 15
+INSTANT_API_TIMEOUT = 10
+COMMON_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+}
+
+# DuckDuckGo Selectors
+RESULT_SELECTORS = [
+    "div.result",
+    'div[class*="result"]',
+    ".result",
+    ".web-result",
+    ".result_body",
+]
+
+TITLE_SELECTORS = [
+    "a.result__a",
+    'a[class*="result"]',
+    ".result__title a",
+    "h3 a",
+    "a",
+]
+
+SNIPPET_SELECTORS = [
+    "a.result__snippet",
+    ".result__snippet",
+    ".result__body",
+    ".snippet",
+    "p",
+]
+
 
 @dataclass
 class SearchResult:
@@ -22,18 +59,36 @@ class SearchResult:
 
 
 def extract_domain(url: str) -> str:
-    """Extract domain from URL."""
+    """
+    Extract domain from URL.
+
+    Args:
+        url: URL string to extract domain from
+
+    Returns:
+        Lowercase domain name or empty string if parsing fails
+    """
     try:
         parsed = urllib.parse.urlparse(url)
         return parsed.netloc.lower()
-    except Exception:
+    except Exception as e:
+        logger.debug("Failed to extract domain from URL %s: %s", url, e)
         return ""
 
 
 async def search_duckduckgo_instant(
     query: str, http_client: httpx.AsyncClient
 ) -> List[SearchResult]:
-    """Search using DuckDuckGo Instant Answer API."""
+    """
+    Search using DuckDuckGo Instant Answer API.
+
+    Args:
+        query: Search query string
+        http_client: HTTP client to use for the request
+
+    Returns:
+        List of SearchResult objects from instant answers
+    """
     try:
         # Use DuckDuckGo's Instant Answer API
         url = "https://api.duckduckgo.com/"
@@ -44,7 +99,7 @@ async def search_duckduckgo_instant(
             "skip_disambig": 1,
         }
 
-        response = await http_client.get(url, params=params, timeout=10)  # type: ignore[arg-type]
+        response = await http_client.get(url, params=params, timeout=INSTANT_API_TIMEOUT)  # type: ignore[arg-type]
         response.raise_for_status()
 
         data = response.json()
@@ -81,23 +136,24 @@ async def search_duckduckgo_instant(
 async def search_duckduckgo_html(
     query: str, http_client: httpx.AsyncClient, count: int = 10
 ) -> List[SearchResult]:
-    """Search using DuckDuckGo HTML interface as fallback."""
+    """
+    Search using DuckDuckGo HTML interface as fallback.
+
+    Args:
+        query: Search query string
+        http_client: HTTP client to use for the request
+        count: Maximum number of results to return
+
+    Returns:
+        List of SearchResult objects parsed from HTML
+    """
     try:
         # Use DuckDuckGo's HTML interface
         url = "https://html.duckduckgo.com/html/"
         params = {"q": query}
 
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
-        }
-
         response = await http_client.get(
-            url, params=params, headers=headers, timeout=15
+            url, params=params, headers=COMMON_HEADERS, timeout=DEFAULT_TIMEOUT
         )
         response.raise_for_status()
 
@@ -105,20 +161,12 @@ async def search_duckduckgo_html(
         results = []
 
         # DuckDuckGo result selectors (multiple attempts for robustness)
-        result_selectors = [
-            "div.result",
-            'div[class*="result"]',
-            ".result",
-            ".web-result",
-            ".result_body",
-        ]
-
         result_divs: list = []
-        for selector in result_selectors:
+        for selector in RESULT_SELECTORS:
             result_divs = soup.select(selector)
             if result_divs:
                 logger.info(
-                    f"Found {len(result_divs)} results with selector: {selector}"
+                    "Found %d results with selector: %s", len(result_divs), selector
                 )
                 break
 
@@ -143,16 +191,8 @@ async def search_duckduckgo_html(
         for i, div in enumerate(result_divs[:count]):
             try:
                 # Multiple title/link selectors
-                title_selectors = [
-                    "a.result__a",
-                    'a[class*="result"]',
-                    ".result__title a",
-                    "h3 a",
-                    "a",
-                ]
-
                 title_link = None
-                for selector in title_selectors:
+                for selector in TITLE_SELECTORS:
                     title_link = div.select_one(selector)
                     if title_link:
                         break
@@ -164,16 +204,8 @@ async def search_duckduckgo_html(
                 url = title_link.get("href", "")
 
                 # Extract snippet/description
-                snippet_selectors = [
-                    "a.result__snippet",
-                    ".result__snippet",
-                    ".result__body",
-                    ".snippet",
-                    "p",
-                ]
-
                 description = ""
-                for selector in snippet_selectors:
+                for selector in SNIPPET_SELECTORS:
                     snippet_elem = div.select_one(selector)
                     if snippet_elem:
                         description = snippet_elem.get_text().strip()
@@ -187,8 +219,8 @@ async def search_duckduckgo_html(
                         )
                         if "uddg" in querystr:
                             url = querystr["uddg"][0]
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("Failed to parse redirect URL %s: %s", url, e)
 
                 # Skip if no valid URL or title
                 if not url or not title:
@@ -218,16 +250,26 @@ async def search_duckduckgo_html(
 async def search_web(
     query: str, http_client: httpx.AsyncClient, count: int = 10
 ) -> List[SearchResult]:
-    """Main search function that tries multiple methods."""
-    logger.info(f"Searching for: '{query}' (max {count} results)")
+    """
+    Main search function that tries multiple methods.
+
+    Args:
+        query: Search query string
+        http_client: HTTP client to use for requests
+        count: Maximum number of results to return
+
+    Returns:
+        List of unique SearchResult objects from both instant answers and HTML search
+    """
+    logger.info("Searching for: '%s' (max %d results)", query, count)
 
     # Try instant answers first
     instant_results = await search_duckduckgo_instant(query, http_client)
-    logger.info(f"Instant answers found {len(instant_results)} results")
+    logger.info("Instant answers found %d results", len(instant_results))
 
     # Always try HTML search for more comprehensive results
     html_results = await search_duckduckgo_html(query, http_client, count)
-    logger.info(f"HTML search found {len(html_results)} results")
+    logger.info("HTML search found %d results", len(html_results))
 
     # Combine and deduplicate
     all_results = instant_results + html_results
@@ -242,5 +284,5 @@ async def search_web(
             if len(unique_results) >= count:
                 break
 
-    logger.info(f"Returning {len(unique_results)} unique valid results")
+    logger.info("Returning %d unique valid results", len(unique_results))
     return unique_results

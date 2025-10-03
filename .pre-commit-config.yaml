@@ -41,3 +41,12 @@ repos:
           "types-beautifulsoup4",
         ]
         args: ["--ignore-missing-imports", "--allow-untyped-defs", "--no-strict-optional"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.13.2
+    hooks:
+      - id: ruff
+        args: [
+          "--select=G,TRY,S110",         # G=logging format, TRY=try/except, S110=try-except-pass
+          "--ignore=TRY003,TRY300",      # TRY003=long messages in exceptions, TRY300=else block (optional)
+        ]
