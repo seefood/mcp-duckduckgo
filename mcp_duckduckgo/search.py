@@ -107,22 +107,26 @@ async def search_duckduckgo_instant(
 
         # Get the abstract/summary
         if data.get("Abstract"):
+            abstract_url = data.get("AbstractURL", "")
             results.append(
                 SearchResult(
                     title=data.get("Heading", query),
-                    url=data.get("AbstractURL", ""),
+                    url=abstract_url,
                     description=data.get("Abstract", ""),
+                    domain=extract_domain(abstract_url),
                 )
             )
 
         # Get related topics
         for topic in data.get("RelatedTopics", []):
             if isinstance(topic, dict) and topic.get("Text") and topic.get("FirstURL"):
+                topic_url = topic.get("FirstURL", "")
                 results.append(
                     SearchResult(
                         title=topic.get("Text", ""),
-                        url=topic.get("FirstURL", ""),
+                        url=topic_url,
                         description=topic.get("Text", ""),
+                        domain=extract_domain(topic_url),
                     )
                 )
 
