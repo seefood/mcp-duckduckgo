@@ -74,7 +74,7 @@ async def search_duckduckgo_instant(
         return results
 
     except Exception as e:
-        logger.error(f"DuckDuckGo instant search failed: {e}")
+        logger.exception("DuckDuckGo instant search failed: %s", e)
         return []
 
 
@@ -204,14 +204,14 @@ async def search_duckduckgo_html(
                 )
 
             except Exception as e:
-                logger.warning(f"Failed to parse result {i}: {e}")
+                logger.warning("Failed to parse result %d: %s", i, e)
                 continue
 
-        logger.info(f"Successfully parsed {len(results)} HTML results")
+        logger.info("Successfully parsed %d HTML results", len(results))
         return results
 
     except Exception as e:
-        logger.error(f"DuckDuckGo HTML search failed: {e}")
+        logger.exception("DuckDuckGo HTML search failed: %s", e)
         return []
 
 

@@ -2,13 +2,13 @@
 
 A Model Context Protocol (MCP) server that provides web search capabilities using [DuckDuckGo](https://duckduckgo.com). This server enables LLMs to search the web and retrieve detailed content from websites through structured data extraction.
 
-### Key Features
+## Key Features
 - **Fast and reliable**. Uses DuckDuckGo's web interface with robust HTML parsing
 - **LLM-friendly**. Returns structured data optimized for AI consumption
 - **Content extraction**. Intelligently extracts and summarizes webpage content
 - **Related searches**. Generates contextual search suggestions
 
-### Requirements
+## Requirements
 - Python 3.10 or newer
 - VS Code, Cursor, Windsurf, Claude Desktop, Goose or any other MCP client
 

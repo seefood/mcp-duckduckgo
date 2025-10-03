@@ -21,7 +21,7 @@ fi
 # Check if test dependencies are installed
 python -c "import pytest" 2>/dev/null || {
     echo "pytest not found. Installing test dependencies..."
-    pip install -e ".[test]"
+    python -m pip install -e ".[test]"
 }
 
 # Run the specified test with verbose output
