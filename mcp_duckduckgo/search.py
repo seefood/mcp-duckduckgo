@@ -73,8 +73,8 @@ async def search_duckduckgo_instant(
 
         return results
 
-    except Exception as e:
-        logger.exception("DuckDuckGo instant search failed: %s", e)
+    except Exception:
+        logger.exception("DuckDuckGo instant search failed")
         return []
 
 
@@ -210,8 +210,8 @@ async def search_duckduckgo_html(
         logger.info("Successfully parsed %d HTML results", len(results))
         return results
 
-    except Exception as e:
-        logger.exception("DuckDuckGo HTML search failed: %s", e)
+    except Exception:
+        logger.exception("DuckDuckGo HTML search failed")
         return []
 
 

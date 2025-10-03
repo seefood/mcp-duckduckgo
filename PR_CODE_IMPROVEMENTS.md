@@ -63,7 +63,7 @@ Professional code quality improvements addressing all issues identified in the c
 - **Fast execution**: 0.10s
 
 ### test_tools.py (17 tests)
-```
+```text
 TestValidateUrl (8 tests)
 ├─ Valid URLs: http, https
 ├─ Invalid URLs: file, javascript, data, ftp
@@ -84,7 +84,7 @@ TestGetAutocompleteSuggestions (6 tests)
 ```
 
 ### test_search.py (15 tests)
-```
+```text
 TestExtractDomain (6 tests)
 ├─ Simple domain extraction
 ├─ Subdomains
